@@ -1,0 +1,706 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/fluid.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="Liang Gao">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="android第三方支付，以支付宝和微信支付最具代表性。如果要实现完整的支付流程，请参考官方文档。本文讨论的，是支付最后一公里–弱网下用户体验优化的问题。 第三方支付流程大体相似，其简化时序图如下所示：     支付环节，涉及到网络的交互一共有三次，分别对应上图的***请求1和响应1，请求2和响应2，请求3和响应3***。  请求1和响应1–商户App向商户Server发起订单生成请求，商户App">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android第三方支付弱网用户体验优化">
+<meta property="og:url" content="http://luckyleongao.github.io/2017/02/17/android%E4%B8%89%E6%96%B9%E6%94%AF%E4%BB%98%E5%BC%B1%E7%BD%91%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="android第三方支付，以支付宝和微信支付最具代表性。如果要实现完整的支付流程，请参考官方文档。本文讨论的，是支付最后一公里–弱网下用户体验优化的问题。 第三方支付流程大体相似，其简化时序图如下所示：     支付环节，涉及到网络的交互一共有三次，分别对应上图的***请求1和响应1，请求2和响应2，请求3和响应3***。  请求1和响应1–商户App向商户Server发起订单生成请求，商户App">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://luckyleongao.github.io/img/%E6%94%AF%E4%BB%98%E6%B5%81%E7%A8%8B%E6%97%B6%E5%BA%8F%E5%9B%BE.jpg">
+<meta property="og:image" content="http://luckyleongao.github.io/img/loading.jpg">
+<meta property="og:image" content="http://luckyleongao.github.io/img/network_issue.jpg">
+<meta property="article:published_time" content="2017-02-16T16:00:00.000Z">
+<meta property="article:modified_time" content="2023-07-14T11:42:41.497Z">
+<meta property="article:author" content="Liang Gao">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://luckyleongao.github.io/img/%E6%94%AF%E4%BB%98%E6%B5%81%E7%A8%8B%E6%97%B6%E5%BA%8F%E5%9B%BE.jpg">
+  
+  
+  
+  <title>Android第三方支付弱网用户体验优化 - Hexo</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"luckyleongao.github.io","root":"/","version":"1.9.4","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":false,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":null,"app_key":null,"server_url":null,"path":"window.location.pathname","ignore_local":false}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+  
+
+
+  
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>Fluid</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                <span>首页</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                <span>归档</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                <span>分类</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                <span>标签</span>
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                <span>关于</span>
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              <i class="iconfont icon-search"></i>
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">
+              <i class="iconfont icon-dark" id="color-toggle-icon"></i>
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="Android第三方支付弱网用户体验优化"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2017-02-17 00:00" pubdate>
+          2017年2月17日 凌晨
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.4k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          54 分钟
+        
+      </span>
+    
+
+    
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">Android第三方支付弱网用户体验优化</h1>
+            
+            
+              <div class="markdown-body">
+                
+                <p><em><strong>android</strong></em>第三方支付，以<a target="_blank" rel="noopener" href="https://doc.open.alipay.com/doc2/detail?treeId=59&articleId=103563&docType=1">支付宝</a>和<a target="_blank" rel="noopener" href="https://pay.weixin.qq.com/wiki/doc/api/app/app.php?chapter=8_5">微信支付</a>最具代表性。如果要实现完整的支付流程，请参考官方文档。<br>本文讨论的，是支付最后一公里–<em><strong>弱网下用户体验优化</strong></em>的问题。</p>
+<p>第三方支付流程大体相似，其<strong>简化时序图</strong>如下所示：</p>
+<div align=center>
+<img src="/img/支付流程时序图.jpg" srcset="/img/loading.gif" lazyload width = 85%>
+</div>
+
+<p>支付环节，涉及到网络的交互一共有三次，分别对应上图的***<font color=red>请求1</font><em><strong>和</strong></em><font color=red>响应1</font><em><strong>，</strong></em><font color=red>请求2</font><em><strong>和</strong></em><font color=red>响应2</font><em><strong>，</strong></em><font color=red>请求3</font><em><strong>和</strong></em><font color=red>响应3</font>***。</p>
+<ul>
+<li><em><strong><font color=red>请求1</font><em><strong>和</strong></em><font color=red>响应1</font></strong></em>–<strong>商户App</strong>向<strong>商户Server</strong>发起订单生成请求，<strong>商户App</strong>接收<strong>商户Server</strong>生成的订单号；</li>
+<li><em><strong><font color=red>请求2</font><em><strong>和</strong></em><font color=red>响应2</font></strong></em>–<strong>商户App</strong>向<strong>第三方Server</strong>发起支付请求，<strong>商户App</strong>和<strong>商户Server</strong>接收支付结果；</li>
+<li><em><strong><font color=red>请求3</font><em><strong>和</strong></em><font color=red>响应3</font></strong></em>–<strong>商户App</strong>向<strong>商户Server</strong>发起订单结果查询请求，<strong>商户App</strong>接收<strong>商户Server</strong>的订单支付结果；</li>
+</ul>
+<hr>
+<blockquote>
+<p>在弱网下，这三次网络交互都有可能出现<em><strong>久未达</strong></em>或<em><strong>不可达</strong></em>的情况。<br>如果客户端没有相应的处理逻辑，就会造成不好的用户体验。</p>
+</blockquote>
+<p>下面，我们详细分析一下这三次网络交互应该如何处理。</p>
+<p>##请求1 &amp;&amp; 响应1<br>这里需要明确的一点是：一旦用户发起支付请求，就会弹出<strong>加载动效</strong>，而且当请求1久未达或不可达时，<strong>加载动效</strong>会一直存在。<br>所以，从用户体验的角度看，这里应该添加一个***<font size=3 color=red>定时器！</font><em><strong>当定时器超时后，关闭</strong>加载动效</em>*，并切断后续流程。</p>
+<p>***<font size=4 color=red>请求1</font><em><strong>久未达或不可达，包含两种情况：</strong></em><font size=3 color=deepred>定时器超时</font><em><strong>和在超时时间内的</strong></em><font size=3 color=deepred>用户主动取消</font>***。<br><em><strong><font size=4 color=red>响应1</font><em><strong>久未达或不可达，包含两种情况：</strong></em><font size=3 color=deepred>定时器超时</font><em><strong>在超时时间内的</strong></em><font size=3 color=deepred>网络返回失败</font><em><strong>（</strong></em>onErrorResponse</strong></em>）。</p>
+<p>针对***<font size=3 color=deepred>定时器超时</font>***的正确做法是：</p>
+<blockquote>
+<p>关闭<strong>加载动效</strong>，弹出气泡提示（例如“连接超时，请重试”），同时***<font size=4 color=blue>切断请求1</font>***；</p>
+</blockquote>
+<p>示例代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> <span class="hljs-type">Runnable</span> <span class="hljs-variable">requestOrderTimeoutRunnable</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">Runnable</span>() &#123;<br>    <span class="hljs-meta">@Override</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">run</span><span class="hljs-params">()</span> &#123;<br>    	<span class="hljs-comment">// 标识是否超时</span><br>        <span class="hljs-keyword">if</span> (!timeoutflag) &#123;<br>            <span class="hljs-comment">// 关闭加载动效</span><br>            anidlg.cancel();<br>            <span class="hljs-comment">// 弹出气泡提示</span><br>            UlabToast.makeText(mContext, mContext.getString(R.string.login_connect_timeout),<br>                    Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>            <span class="hljs-comment">// 切断请求1</span><br>            <span class="hljs-keyword">if</span> (JsonRequestByVolley.currentRequest != <span class="hljs-literal">null</span>) &#123;<br>                JsonRequestByVolley.currentRequest.cancel();<br>            &#125;<br>        &#125;<br>    &#125;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<p>针对***<font size=3 color=deepred>用户主动取消</font><em><strong>和</strong></em><font size=3 color=deepred>网络返回失败</font><em><strong>（</strong></em>onErrorResponse***）这两种情况的正确做法是：</p>
+<blockquote>
+<p>关闭<strong>加载动效</strong>，弹出气泡提示（例如“订单支付失败”和“连接服务器失败，请重试”），同时***<font size=4 color=blue>切断请求1和定时器</font>***；</p>
+</blockquote>
+<p>示例代码如下：</p>
+<p>***<font size=3 color=deepred>用户主动取消</font>***：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><code class="hljs java">anidlg.setOnCancelListener(<span class="hljs-keyword">new</span> <span class="hljs-title class_">OnCancelListener</span>()&#123;<br>    <span class="hljs-meta">@Override</span><br>    <span class="hljs-comment">// 关闭加载动效</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">onCancel</span><span class="hljs-params">(DialogInterface arg0)</span> &#123;<br>        <span class="hljs-comment">// 弹出气泡提示</span><br>        UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_fail),<br>                Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>        <span class="hljs-comment">// 切断定时器</span><br>        <span class="hljs-keyword">if</span> (timeoutHandler != <span class="hljs-literal">null</span>) &#123;<br>            timeoutHandler.removeCallbacks(requestOrderTimeoutRunnable);<br>        &#125;<br>        <span class="hljs-comment">// 切断请求1</span><br>        <span class="hljs-keyword">if</span> (JsonRequestByVolley.currentRequest != <span class="hljs-literal">null</span>) &#123;<br>            JsonRequestByVolley.currentRequest.cancel();<br>        &#125;<br>    &#125;<br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<p><em><strong><font size=3 color=deepred>网络返回失败</font><em><strong>（</strong></em>onErrorResponse</strong></em>）：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-meta">@Override</span><br><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">onErrorResponse</span><span class="hljs-params">(VolleyError error)</span> &#123;<br>    <span class="hljs-comment">// 关闭加载动效</span><br>    anidlg.cancel();<br>    <span class="hljs-comment">// 弹出气泡提示</span><br>    UlabToast.makeText(mContext, mContext.getString(R.string.login_connect_fail),<br>            Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>    <span class="hljs-comment">// 切断定时器</span><br>    <span class="hljs-keyword">if</span> (timeoutHandler != <span class="hljs-literal">null</span>) &#123;<br>        timeoutHandler.removeCallbacks(requestOrderTimeoutRunnable);<br>    &#125;<br>    <span class="hljs-comment">// 切断请求1</span><br>    <span class="hljs-keyword">if</span> (JsonRequestByVolley.currentRequest != <span class="hljs-literal">null</span>) &#123;<br>        JsonRequestByVolley.currentRequest.cancel();<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>##请求2 &amp;&amp; 响应2<br>这里需要明确的一点是，一旦***<font size=4 color=red>请求2</font>***发出，用户是无法中途取消的，只能等待跳转到第三方支付平台，或者提示网络超时，如下图所示：</p>
+<div align=center>
+<img src="/img/loading.jpg" srcset="/img/loading.gif" lazyload width = 55%>
+</div>
+<div align=center>
+<img src="/img/network_issue.jpg" srcset="/img/loading.gif" lazyload width = 55%>
+</div>
+
+<p>整个过程<strong>商户App</strong>是无法监测的。所以，在发起***<font size=4 color=red>请求2</font><em><strong>之前，</strong>商户App</em><em>一定要做好自身的检查。<br>例如，存在这么一种情况：当用户主动取消，切断</em><em>*<font size=4 color=red>请求1</font><em><strong>时，</strong>商户App</em>*已经接收到了</em>**<font size=4 color=red>响应1</font>***。</p>
+<p>这就会造成：<strong>加载动效</strong>已经取消，弹出气泡也提示失败，但是第三方支付平台依然会被调起的尴尬情况。<br>所以，正确的做法是：</p>
+<blockquote>
+<p>在发起***<font size=4 color=red>请求2</font><em><strong>之前，检查该次请求是否已经被取消。<br>如果已经取消，则不发起</strong></em><font size=4 color=red>请求2</font><em><strong>，依旧弹出气泡提示失败；<br>如果没有取消，则发起</strong></em><font size=4 color=red>请求2</font>***，不弹出气泡提示；</p>
+</blockquote>
+<p>示例代码如下：</p>
+<p>***<font size=3 color=deepred>第三方支付请求</font>***：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-comment">// 检查用户是否已取消请求</span><br><span class="hljs-keyword">if</span> (anidlg.isShowing()) &#123;<br>	<span class="hljs-comment">// 发起请求2</span><br>    aliPay(orderInfo.aliorderinfo.payinfo);<br>    <span class="hljs-comment">// 标识请求2已经发出</span><br>    isPayCalled = <span class="hljs-literal">true</span>;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><em><strong><font size=3 color=deepred>用户主动取消</font><em><strong>：（用</strong></em>isPayCalled</strong></em>标识请求2是否发出，决定是否弹出气泡提示）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><code class="hljs java">anidlg.setOnCancelListener(<span class="hljs-keyword">new</span> <span class="hljs-title class_">OnCancelListener</span>()&#123;<br>    <span class="hljs-meta">@Override</span><br>    <span class="hljs-comment">// 关闭加载动效</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">onCancel</span><span class="hljs-params">(DialogInterface arg0)</span> &#123;<br>        <span class="hljs-comment">// 请求2未发出，弹出气泡提示</span><br>        **********************<br>        *<span class="hljs-keyword">if</span> (!isPayCalled) &#123; *<br>        **********************<br>           UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_fail),<br>                    Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>        &#125;<br>        <span class="hljs-comment">// 切断定时器</span><br>        <span class="hljs-keyword">if</span> (timeoutHandler != <span class="hljs-literal">null</span>) &#123;<br>            timeoutHandler.removeCallbacks(requestOrderTimeoutRunnable);<br>        &#125;<br>        <span class="hljs-comment">// 切断请求1</span><br>        <span class="hljs-keyword">if</span> (JsonRequestByVolley.currentRequest != <span class="hljs-literal">null</span>) &#123;<br>            JsonRequestByVolley.currentRequest.cancel();<br>        &#125;<br>    &#125;<br>&#125;);<br></code></pre></td></tr></table></figure>
+<p>值得注意的是，<em><strong>isPayCalled</strong></em>需要在***<font size=3 color=deepred>网络返回失败</font><em><strong>（onErrorResponse）和</strong></em><font size=3 color=deepred>定时器超时</font><em><strong>的代码里设置为</strong></em>true<em><strong>，因为这两种情况已经有了气泡提示，不应在</strong></em><font size=3 color=deepred>用户主动取消</font>***的代码里重复提示。</p>
+<p><strong>*<font size=4 color=red>响应2</font><em><strong>久未达或不可达，造成最直接的影响是：</strong>商户App</em>*一直处于</strong>加载动效**的状态，无法完成接下来的流程。<br><em><strong><font size=3 color=deepred>用户主动取消</font><em><strong>时，由于</strong></em><font size=4 color=red>请求2</font><em><strong>已经调起，</strong></em>isPayCalled&#x3D;true</strong></em>，所以也不会有弹出气泡提示。</p>
+<p>此时的推荐做法是：</p>
+<blockquote>
+<p>在返回<em><strong>Activity</strong></em>的<strong>*onResume()<em><strong>中，检查第三方支付的回调函数是否执行；<br>如果未执行，则关闭</strong>加载动效</em>*，弹出气泡提示（例如“订单状态未可知，请联系客服”），并</strong>*<font size=4 color=blue>切断请求3</font>***；<br>如果已执行，则不做处理；</p>
+</blockquote>
+<p>示例代码如下：（正常情况下，先执行第三方支付回调函数，后执行<em><strong>onResume</strong></em>，***<font size=4 color=red>响应2</font><em><strong>久未达或不可达时，则会先执行</strong></em>onResume***）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><code class="hljs java"> <span class="hljs-meta">@Override</span><br> <span class="hljs-keyword">protected</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">onResume</span><span class="hljs-params">()</span> &#123;<br> 	<span class="hljs-comment">// 检查是否执行了支付回调函数</span><br> 	<span class="hljs-keyword">if</span> (!isExecuted) &#123;<br>    	<span class="hljs-keyword">if</span> (anidlg != <span class="hljs-literal">null</span> &amp;&amp; anidlg.isShowing()) &#123;<br>        	<span class="hljs-comment">// 关闭加载动效</span><br>            anidlg.cancel();<br>        &#125;<br>        <span class="hljs-comment">// 弹出气泡提示</span><br>        UlabToast.makeText(mContext, mContext.getString(R.string.login_connect_fail),<br>                Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>        <span class="hljs-comment">// 用于在第三方支付回调函数里判断，是否切断请求3</span><br>        isExecuted = <span class="hljs-literal">true</span>;<br>    &#125;<br>    <span class="hljs-built_in">super</span>.onResume();<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p><em><strong><font size=3 color=deepred>用户主动取消</font><em><strong>：（用</strong></em>isExecuted</strong></em>标识第三方支付是否执行了回调函数）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><code class="hljs java">anidlg.setOnCancelListener(<span class="hljs-keyword">new</span> <span class="hljs-title class_">OnCancelListener</span>()&#123;<br>    <span class="hljs-meta">@Override</span><br>    <span class="hljs-comment">// 关闭加载动效</span><br>    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">onCancel</span><span class="hljs-params">(DialogInterface arg0)</span> &#123;<br>        <span class="hljs-comment">// 标识第三方支付是否执行了回调函数</span><br>        **********************<br>        *<span class="hljs-keyword">if</span> (!isExecute) &#123;   *<br>        **********************<br>        	<span class="hljs-comment">// 请求2未发出，弹出气泡提示</span><br>            <span class="hljs-keyword">if</span> (!isPayCalled) &#123;<br>               UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_fail),<br>                        Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>            &#125;<br>            <span class="hljs-comment">// 切断定时器</span><br>            <span class="hljs-keyword">if</span> (timeoutHandler != <span class="hljs-literal">null</span>) &#123;<br>                timeoutHandler.removeCallbacks(requestOrderTimeoutRunnable);<br>            &#125;<br>            <span class="hljs-comment">// 切断请求1</span><br>            <span class="hljs-keyword">if</span> (JsonRequestByVolley.currentRequest != <span class="hljs-literal">null</span>) &#123;<br>                JsonRequestByVolley.currentRequest.cancel();<br>            &#125;<br>        &#125;<br>    &#125;<br>&#125;);<br></code></pre></td></tr></table></figure>
+
+<p>***<font size=3 color=deepred>第三方支付回调</font>***：（以支付宝为例）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-meta">@Override</span><br><span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">handleMessage</span><span class="hljs-params">(Message msg)</span> &#123;<br>    <span class="hljs-keyword">switch</span> (msg.what) &#123;<br>    <span class="hljs-keyword">case</span> SDK_PAY_FLAG: &#123;<br>    	<span class="hljs-keyword">if</span> (!isExecute) &#123;<br>        	isExecute = <span class="hljs-literal">true</span>;<br>            <br>            <span class="hljs-type">PayResult</span> <span class="hljs-variable">payResult</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">PayResult</span>((String) msg.obj);<br>            <span class="hljs-type">String</span> <span class="hljs-variable">resultStatus</span> <span class="hljs-operator">=</span> payResult.getResultStatus();<br>            <span class="hljs-comment">// 订单支付失败，以同步返回消息为准，弹出气泡提示，即时响应</span><br>            <span class="hljs-keyword">if</span> (!resultStatus.equals(<span class="hljs-string">&quot;9000&quot;</span>)) &#123;<br>                 UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_fail),<br>                        Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>            &#125;<br>            <span class="hljs-keyword">else</span> &#123;<br>                <span class="hljs-comment">// 订单支付成功，以商户Server的异步返回消息为准</span><br>                <span class="hljs-type">CyclicBarrier</span> <span class="hljs-variable">cb</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">CyclicBarrier</span>(<span class="hljs-number">1</span>, <span class="hljs-keyword">new</span> <span class="hljs-title class_">Runnable</span>()&#123;<br>                    <span class="hljs-keyword">public</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">run</span><span class="hljs-params">()</span> &#123;<br>                        <span class="hljs-keyword">if</span> (MyApplication.PAY_SUCCESS == orderResult.result) &#123;<br>                        	<span class="hljs-comment">// 弹出气泡提示</span><br>		 					UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_success),<br>                       				 Toast.LENGTH_SHORT).show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>                            <span class="hljs-comment">// 展示支付结果</span><br>                            runProcessByResult();<br>                        &#125;<br>                    &#125;<br>                &#125;);<br>                <span class="hljs-comment">// 向服务器请求支付结果,获取当前订单状态</span><br>                getRechargeResult(cb, orderInfo.orderid, rechargeway);<br>            &#125;<br>        &#125;<br>        <span class="hljs-comment">// 响应2久未达，切断请求3</span><br>        <span class="hljs-keyword">else</span> &#123;<br>        &#125;<br>        anidlg.cancel();<br>        <span class="hljs-keyword">break</span>;<br>    &#125;<br>    <span class="hljs-keyword">default</span>:<br>        <span class="hljs-keyword">break</span>;<br>    &#125;<br>&#125;;<br></code></pre></td></tr></table></figure>
+<p>##请求3 &amp;&amp; 响应3<br><strong>*<font size=4 color=red>请求3</font><em><strong>和</strong></em><font size=4 color=red>响应3</font><em><strong>，与</strong></em><font size=4 color=red>请求1</font><em><strong>和</strong></em><font size=4 color=red>响应1</font><em><strong>类似，都是</strong>商户App</em>*和</strong>商户Server**之间的交互，采用同样的处理方式。这里不再赘述。</p>
+<p>##其它优化点1<br>默认的气泡提示最短时间是***<font size=4 color=red>2s</font>***，如果用户操作较快，会发生如下情况：</p>
+<blockquote>
+<p>发出新的请求时，仍旧显示上一次请求的气泡提示；</p>
+</blockquote>
+<p>如果气泡提示涉及到网络，特别是弱网，上一次请求的气泡可能隔了很久才会出现，给用户造成歧义。<br>正确的做法是：</p>
+<blockquote>
+<p>将支付流程的所有气泡统一成一个变量，当发起新的支付请求时，隐藏之前的气泡提示。</p>
+</blockquote>
+<p>示例代码如下：</p>
+<p>***<font size=3 color=deepred>统一气泡提示</font>***：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">static</span> UlabToast uToast;<br>……<br>uToast = UlabToast.makeText(mContext, mContext.getString(R.string.recharge_order_fail), Toast.LENGTH_SHORT);<br>uToast.show(<span class="hljs-literal">true</span>, R.drawable.toast_jb);<br>……<br></code></pre></td></tr></table></figure>
+<p>***<font size=3 color=deepred>隐藏气泡提示</font>***：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><code class="hljs java"><span class="hljs-keyword">private</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">hideAllToasts</span><span class="hljs-params">()</span> &#123;<br>    <span class="hljs-keyword">if</span> (uToast != <span class="hljs-literal">null</span>) &#123;<br>        uToast.hide();<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>##其它优化点2<br>定时器的超时时间不应设置太短，否则在弱网下会造成订单失败率很高的情况。经验值是***<font size=4 color=red>8s</font>***左右。</p>
+
+                
+              </div>
+            
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>Android第三方支付弱网用户体验优化</div>
+      <div>http://luckyleongao.github.io/2017/02/17/android三方支付弱网体验优化/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>Liang Gao</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2017年2月17日</div>
+        </div>
+      
+      
+      
+        <div class="license-meta-item">
+          <div>许可协议</div>
+          <div>
+            
+              
+              
+                <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+                  <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                    <i class="iconfont icon-by"></i>
+                  </span>
+                </a>
+              
+            
+          </div>
+        </div>
+      
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2018/11/07/%E6%BC%AB%E7%94%BB%E9%98%85%E8%AF%BB%E5%99%A8/" title="漫画阅读器">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">漫画阅读器</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2017/01/12/android6.0%E6%96%B0%E6%9D%83%E9%99%90%E5%A4%84%E7%90%86/" title="Android 6.0 新系统权限">
+                        <span class="hidden-mobile">Android 6.0 新系统权限</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header">
+    <i class="iconfont icon-list"></i>
+    <span>目录</span>
+  </p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init(Object.assign({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      scrollSmooth    : true,
+      includeTitleTags: true,
+      headingsOffset  : -boardTop,
+    }, CONFIG.toc));
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('tocbot' in window) {
+        tocbot.refresh();
+        var toc = jQuery('#toc');
+        if (toc.length === 0 || !tocbot) {
+          return;
+        }
+        if (toc.find('.toc-list-item').length > 0) {
+          toc.css('visibility', 'visible');
+        }
+      }
+    });
+  });
+</script>
+
+
+  <script src=https://lib.baomitu.com/clipboard.js/2.0.11/clipboard.min.js></script>
+
+  <script>Fluid.plugins.codeWidget();</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+
+    Fluid.events.registerRefreshCallback(function() {
+      if ('anchors' in window) {
+        anchors.removeAll();
+        var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+        var res = [];
+        for (var item of el) {
+          res.push('.markdown-body > ' + item.trim());
+        }
+        if (CONFIG.anchorjs.placement === 'left') {
+          anchors.options.class = 'anchorjs-link-left';
+        }
+        anchors.add(res.join(', '));
+      }
+    });
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  <script  src="/js/local-search.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
